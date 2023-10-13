@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <div id="titleBox" class="row mb-4">
+    <div class="col-12">
+      <h2 class="text-center">BUCAREST Bank</h2>
+    </div>
+  </div>
+  <div id="clientErrorBox" x-show="inputAmountInvalid" x-text="inputAmountInvalidMessage"
+    class="alert alert-warning alert-dismissible fade show" role="alert"
+    >
+    <button x-show="inputAmountInvalid" type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  <div id="serverErrorBox" x-data="{ showError : false, errorMessage : '' }" x-show="showError" x-text="errorMessage"
+    class="alert alert-danger alert-dismissible fade show" role="alert"
+    x-on:htmx:before-send.window="showError = false; errorMessage = '';"
+    x-on:htmx:response-error.window="showError = true; errorMessage = $event.detail.xhr.responseText;">
+    <button x-show="showError" type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  <footer id="appFooter">
+    <div class="row mb-4">
+      <div class="col-12">
+        <p> &copy; Copyright The SOFEA Creators</p>
+      </div>
+    </div>
+  </footer>
+</body>
+
+</html>

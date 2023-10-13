@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!-- ... other head elements ... -->
+  <link th:href="@{/webjars/bootstrap/5.3.1/css/bootstrap.min.css}" rel="stylesheet" />
+  <script th:src="@{/webjars/htmx.org/1.9.4/dist/htmx.min.js}" defer></script>
+  <script th:src="@{/webjars/bootstrap/5.3.1/js/bootstrap.bundle.min.js}" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <!-- <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script> -->
+</head>
+
+<body class="container-fluid" x-data="{ activeForm: 'transfer' }">
+
+  <!-- Common accountNumber to be used by all fragments -->
+  <input type="hidden" name="accountNumber" id="accountNumber" value="123456789" />
+
+  <!-- XYZ Bank Title Row -->
+  <div th:replace="~{fragments :: #titleBox }"></div>
+
+  <!-- Sidebar and Main Content Wrapper -->
+  <div class="row mb-4">
+
+    <!-- Sidebar Component -->
+    <div class="col-md-2 bg-dark text-white p-2">
+      <ul class="nav flex-column">
+        <li class="nav-item mb-2">
+          <a href="#" class="nav-link text-white" x-bind:class="{ 'bg-primary': activeForm === 'transfer' }"
+            x-on:click.prevent="activeForm = 'transfer'">Transfer Funds</a>
+        </li>
+        <li class="nav-item">
+          <a href="#" class="nav-link text-white" x-bind:class="{ 'bg-primary': activeForm === 'paybill' }"
+            x-on:click.prevent="activeForm = 'paybill'">Pay Bill</a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-md-10">
+      <!-- Account Details and Balance Wrapper -->
+      <div class="row mb-4">
+
+        <!-- Account Details Component -->
+        <div class="col-md-8" hx-trigger="load" hx-get="/accountDetails" hx-include="#accountNumber"
+          hx-swap="innerHTML">
+          <div class="card" id="accountDetails">
+            <div class="card-header">Account Information</div>
+            <div class="card-body">
+              Account number: <span th:text="${account?.accountNumber ?: 'N/A'}"></span>
+              <span>|</span>
+              Account name: <span th:text="${account?.accountName ?: 'N/A'}"></span>
+              <span>|</span>
+              Current interest rate: <span
+                th:text="${#numbers.formatPercent((account?.currentInterestRate ?: 0.0), 1, 2)}"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account Balance Component -->
+        <div class="col-md-4" hx-trigger="load, account.currentBalance from:body" hx-get="/accountBalance"
+          hx-include="#accountNumber" hx-swap="innerHTML">
+          <div class="card" id="balanceContent">
+            <div class="card-header">Account Balance</div>
+            <div class="card-body">
+              Current balance: <span th:text="${#numbers.formatCurrency(account?.currentBalance ?: 0.0)}"></span>
+              <span>|</span>
+              Available: <span th:text="${#numbers.formatCurrency(account?.currentBalance ?: 0.0)}"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mb-4">
+        <!-- Transaction History Component -->
+        <div class="col-md-12" hx-trigger="load, transactions from:body" hx-get="/transactions"
+          hx-include="#accountNumber" hx-swap="innerHTML">
+          <div class="card" id="transactionsContent">
+            <div class="card-header">Transaction History</div>
+            <div class="card-body overflow-auto" style="height: 200px;">
+              <ul class="list-unstyled">
+                <li th:each="transaction : ${transactions}">
+                  <span th:text="${#temporals.format(transaction.transactionDate, 'dd/MM/yyyy HH:mm')}"></span>
+                  <span>:</span>
+                  <span th:text="${#numbers.formatCurrency(transaction.transactionAmount)}"></span>,
+                  <span th:text="${transaction.isDebit ? 'DEBIT' : 'CREDIT'}"></span>,
+                  <span th:text="${transaction.transactionDescription}"></span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <!-- Updater Components Area -->
+        <div class="col-md-12">
+          <div id="updater" class="card border rounded">
+            <div class="card-header" x-text="activeForm === 'transfer' ? 'Transfer Funds' : 'Pay Bill'">
+            </div>
+            <div class="card-body">
+              <!-- Transfer Funds Form -->
+              <form x-show="activeForm === 'transfer'" post="#" hx-post="/api/v1/payments"
+                hx-include="#accountNumber" hx-swap="none" 
+                x-data="{ inputAmountInvalid : false, inputAmountInvalidMessage : 'Transfer amount invalid' }"
+              >
+                <div class="row mb-2">
+                  <!-- Account Number field -->
+                  <div class="col-md-6 mb-2">
+                    <label for="payToAccountNumber" class="form-label">Pay to account</label>
+                    <input id="payToAccountNumber" name="payToAccountNumber" value="987654321" readonly
+                      class="form-control" />
+                  </div>
+
+                  <!-- Amount field -->
+                  <div class="col-md-6 mb-2" x-data="{ inputAmount : 100.00 }" 
+                       x-init="$watch( 'inputAmount', (value) => inputAmountInvalid = ( value <= 0 ) )"
+                  >
+                    <label for="transferAmount" class="form-label">Amount</label>
+                    <div class="input-group">
+                      <span class="input-group-text">$</span>
+                      <input id="transferAmount" x-model.number="inputAmount" name="amount" class="form-control"
+                        required />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Description field -->
+                <div class="mb-3">
+                  <label for="descriptionField" class="form-label">Description</label>
+                  <input id="descriptionField" name="description" value="Payment for services"
+                    class="form-control mb-2" />
+                </div>
+
+                <!-- Client error display -->
+                <div th:replace="~{fragments :: #clientErrorBox}"></div>
+
+                <!-- Server error display -->
+                <div th:replace="~{fragments :: #serverErrorBox}"></div>
+
+                <button type="submit" class="btn btn-primary">Make Payment</button>
+              </form>
+
+              <!-- Pay Bill Form -->
+              <form x-show="activeForm === 'paybill'" post="#" hx-post="/api/v1/payments" 
+                hx-include="#accountNumber" hx-swap="none"
+                x-data="{ inputAmountInvalid : false, inputAmountInvalidMessage : 'Bill payment amount invalid' }"
+              >
+                <div class="row mb-2">
+                  <!-- Biller ID field -->
+                  <div class="col-md-6 mb-2">
+                    <label for="billerId" class="form-label">Biller ID</label>
+                    <input id="billerId" name="billerId" value="48443877" readonly class="form-control" />
+                  </div>
+
+                  <!-- Amount field -->
+                  <div class="col-md-6 mb-2" x-data="{ inputAmount : 150.00 }" 
+                       x-init="$watch( 'inputAmount', (value) => inputAmountInvalid = ( value <= 0 ) )"
+                  >
+                    <label for="billAmount" class="form-label">Amount</label>
+                    <div class="input-group">
+                      <span class="input-group-text">$</span>
+                      <input id="billAmount" x-model.number="inputAmount" name="amount" class="form-control"
+                        required />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Description field -->
+                <div class="mb-3">
+                  <label for="descriptionField" class="form-label">Description</label>
+                  <input id="descriptionField" name="description" value="Bill Payment" class="form-control mb-2" />
+                </div>
+
+                <!-- Client error display -->
+                <div th:replace="~{fragments :: #clientErrorBox}"></div>
+
+                <!-- Server error display -->
+                <div th:replace="~{fragments :: #serverErrorBox}"></div>
+
+                <button type="submit" class="btn btn-primary">Pay Bill</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div th:replace="~{fragments :: #appFooter}"></div>
+</body>
+
+</html>
